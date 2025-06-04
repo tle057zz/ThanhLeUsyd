@@ -68,7 +68,7 @@ def get_s3_client():
 
 # Database Configuration, REPLACE with your RDS credentials
 DB_HOST = "thanh-image-caption-db.cccn0ofwxkfu.us-east-1.rds.amazonaws.com"
-DB_NAME = "image_caption_db"
+DB_NAME = "thanh-image-caption-db"
 DB_USER = "thanh_admin"
 DB_PASSWORD = "Thanhle057149;"
 

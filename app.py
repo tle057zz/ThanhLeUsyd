@@ -81,8 +81,11 @@ def get_db_connection():
     """
     try:
         connection = mysql.connector.connect(
-            host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASSWORD
-        )
+    host="thanh-image-caption-db.cccn0ofwxkfu.us-east-1.rds.amazonaws.com",
+    user="thanh_admin",
+    password="Thanhle057149;",
+    database="image_caption_db"
+)
         return connection
     except mysql.connector.Error as err:
         print("Error connecting to database:", err)

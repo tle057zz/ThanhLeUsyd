@@ -164,7 +164,7 @@ def upload_form():
 @app.route("/upload", methods=["GET", "POST"])
 def upload_image():
     """
-    Handles image upload, stores the file in AWS S3 (in both the root folder and uploads folder),
+    Handles image upload, stores the file in AWS S3 (in both the 'thumbnails_input' and 'uploads' folders),
     generates a caption using Gemini API, and saves metadata in MySQL RDS.
     """
     if request.method == "POST":
@@ -183,28 +183,28 @@ def upload_image():
         file_data = file.read()  # Read file as binary
 
         # Define the S3 paths
-        root_s3_path = filename  # No prefix for the root folder
-        uploads_s3_path = f"uploads/{filename}"  # Path for the uploads folder
+        root_s3_path = f"uploads/{filename}"  # Path for the uploads folder
+        thumbnails_input_s3_path = f"thumbnails_input/{filename}"  # Path for the thumbnails_input folder
 
-        # Upload file to S3 (root folder)
+        # Upload file to S3 (thumbnails_input folder)
         try:
             s3 = get_s3_client()  # Get a fresh S3 client
-            s3.upload_fileobj(BytesIO(file_data), S3_BUCKET, root_s3_path)  # Upload to root
-            print(f"Uploaded to root: {root_s3_path}")
+            s3.upload_fileobj(BytesIO(file_data), S3_BUCKET, thumbnails_input_s3_path)  # Upload to thumbnails_input
+            print(f"Uploaded to thumbnails_input: {thumbnails_input_s3_path}")
         except Exception as e:
-            return render_template("upload.html", error=f"S3 Upload Error (root): {str(e)}")
+            return render_template("upload.html", error=f"S3 Upload Error (thumbnails_input): {str(e)}")
 
         # Upload file to S3 (uploads folder)
         try:
-            s3.upload_fileobj(BytesIO(file_data), S3_BUCKET, uploads_s3_path)  # Upload to uploads folder
-            print(f"Uploaded to uploads: {uploads_s3_path}")
+            s3.upload_fileobj(BytesIO(file_data), S3_BUCKET, root_s3_path)  # Upload to uploads folder
+            print(f"Uploaded to uploads: {root_s3_path}")
         except Exception as e:
             return render_template("upload.html", error=f"S3 Upload Error (uploads): {str(e)}")
 
         # Generate caption using Gemini API
         caption = generate_image_caption(file_data)
 
-        # Save metadata (image key and caption) to the database
+        # Save metadata using the uploads path in the database
         try:
             connection = get_db_connection()
             if connection is None:
@@ -212,7 +212,7 @@ def upload_image():
             cursor = connection.cursor()
             cursor.execute(
                 "INSERT INTO captions (image_key, caption) VALUES (%s, %s)",
-                (uploads_s3_path, caption),  # Save the uploads path in the database
+                (root_s3_path, caption),  # Save the uploads path in the database
             )
             connection.commit()
             connection.close()
@@ -221,11 +221,12 @@ def upload_image():
 
         # Prepare image for frontend display using Base64 encoding
         encoded_image = base64.b64encode(file_data).decode("utf-8")
-        file_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{uploads_s3_path}"
+        file_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{root_s3_path}"
 
         return render_template("upload.html", image_data=encoded_image, file_url=file_url, caption=caption)
 
     return render_template("upload.html")
+
 
 @app.route("/gallery")
 def gallery():

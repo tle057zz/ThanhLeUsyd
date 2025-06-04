@@ -108,10 +108,63 @@ def upload_form():
     """Render the homepage with the file upload form."""
     return render_template("index.html")
 
+# @app.route("/upload", methods=["GET", "POST"])
+# def upload_image():
+#     """
+#     Handles image upload, stores the file in AWS S3,
+#     generates a caption using Gemini API, and saves metadata in MySQL RDS.
+#     """
+#     if request.method == "POST":
+#         if "file" not in request.files:
+#             return render_template("upload.html", error="No file selected")
+#
+#         file = request.files["file"]
+#
+#         if file.filename == "":
+#             return render_template("upload.html", error="No file selected")
+#
+#         if not allowed_file(file.filename):
+#             return render_template("upload.html", error="Invalid file type")
+#
+#         filename = secure_filename(file.filename)
+#         file_data = file.read()  # Read file as binary
+#
+#         # Upload file to S3
+#         try:
+#             s3 = get_s3_client()  # Get a fresh S3 client
+#             s3.upload_fileobj(BytesIO(file_data), S3_BUCKET, filename)
+#         except Exception as e:
+#             return render_template("upload.html", error=f"S3 Upload Error: {str(e)}")
+#
+#         # Generate caption
+#         caption = generate_image_caption(file_data)
+#
+#         # Save metadata to the database
+#         try:
+#             connection = get_db_connection()
+#             if connection is None:
+#                 return render_template("upload.html", error="Database Error: Unable to connect to the database.")
+#             cursor = connection.cursor()
+#             cursor.execute(
+#                 "INSERT INTO captions (image_key, caption) VALUES (%s, %s)",
+#                 (filename, caption),
+#             )
+#             connection.commit()
+#             connection.close()
+#         except Exception as e:
+#             return render_template("upload.html", error=f"Database Error: {str(e)}")
+#
+#         # Prepare image for frontend display using Base64 encoding
+#         encoded_image = base64.b64encode(file_data).decode("utf-8")
+#         file_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{filename}"
+#
+#         return render_template("upload.html", image_data=encoded_image, file_url=file_url, caption=caption)
+#
+#     return render_template("upload.html")
 @app.route("/upload", methods=["GET", "POST"])
 def upload_image():
     """
-    Handles image upload, stores the file in AWS S3,
+    Handles image upload, stores the file in AWS S3 (in the uploads folder),
     generates a caption using Gemini API, and saves metadata in MySQL RDS.
     """
     if request.method == "POST":
@@ -129,10 +182,13 @@ def upload_image():
         filename = secure_filename(file.filename)
         file_data = file.read()  # Read file as binary
 
+        # Set the path to upload the file to the 'uploads/' folder
+        s3_path = f"uploads/{filename}"
+
         # Upload file to S3
         try:
             s3 = get_s3_client()  # Get a fresh S3 client
-            s3.upload_fileobj(BytesIO(file_data), S3_BUCKET, filename)
+            s3.upload_fileobj(BytesIO(file_data), S3_BUCKET, s3_path)
         except Exception as e:
             return render_template("upload.html", error=f"S3 Upload Error: {str(e)}")
 
@@ -147,7 +203,7 @@ def upload_image():
             cursor = connection.cursor()
             cursor.execute(
                 "INSERT INTO captions (image_key, caption) VALUES (%s, %s)",
-                (filename, caption),
+                (s3_path, caption),
             )
             connection.commit()
             connection.close()
@@ -156,12 +212,11 @@ def upload_image():
 
         # Prepare image for frontend display using Base64 encoding
         encoded_image = base64.b64encode(file_data).decode("utf-8")
-        file_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{filename}"
+        file_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{s3_path}"
 
         return render_template("upload.html", image_data=encoded_image, file_url=file_url, caption=caption)
 
     return render_template("upload.html")
-
 @app.route("/gallery")
 def gallery():
     """
